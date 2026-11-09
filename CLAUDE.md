@@ -32,7 +32,7 @@ Un **modèle de présentation** (`src/deck.js`, unités en points, 960×540 = 16
 
 ## Plan par lots
 1. ✅ Squelette, manifest, install, diagnostic, chapitre « Les bases » (31 exercices), mode fichier, progression locale, compte (config vide).
-2. Formation complète : test pour sauter, test de niveau (≈24 questions), écran d'accueil déjà là.
+2. ✅ Test pour sauter un chapitre (`grp:<id>` : 4 épreuves tirées dans le chapitre, 3 à réussir, 5 min chacune, sans aide ; réussi = `recordSkip`, tous ses exercices comptent faits via `doneMap()` sans XP) et test de niveau (`src/placement.js`, 12 questions « bases » pour l'instant ; chaque nouveau chapitre ajoute ses questions, cible ≈ 24 ; les chapitres tout juste proposent d'être sautés). Pas de test pour sauter une « ceinture » : le parcours PowerPoint n'a que des chapitres.
 3. Ruban onglet par onglet (≈150 exercices) ; lecture XML via `exportAsBase64` pour transitions/animations.
 4. Certification (générateurs à graine, 5 niveaux, 7 domaines, /100) + `verify` sur plusieurs tirages.
 5. Comptes : activer Supabase (`supabase/schema.sql`, table `pptdojo_progress`) — **demander à Jules l'URL et la clé publishable**.
