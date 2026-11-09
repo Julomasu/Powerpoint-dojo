@@ -26,7 +26,7 @@ function paragraphs(s) {
 
 function spXml(s, i, layout) {
   const xfrm = `<a:xfrm${s.rot ? ` rot="${Math.round(s.rot * 60000)}"` : ""}><a:off x="${e(s.left)}" y="${e(s.top)}"/><a:ext cx="${e(s.width)}" cy="${e(s.height)}"/></a:xfrm>`;
-  const nv = (cNvSp) => `<p:cNvPr id="${s.id}" name="${esc(s.name)}"${s.alt ? ` descr="${esc(s.alt)}"` : ""}/>${cNvSp}`;
+  const nv = (cNvSp) => `<p:cNvPr id="${s.id}" name="${esc(s.name)}"${s.alt ? ` descr="${esc(s.alt)}"` : ""}${s.visible === false ? ' hidden="1"' : ""}/>${cNvSp}`;
   if (s.kind === "line") {
     return `<p:cxnSp><p:nvCxnSpPr>${nv("<p:cNvCxnSpPr/>")}<p:nvPr/></p:nvCxnSpPr><p:spPr>${xfrm}<a:prstGeom prst="line"><a:avLst/></a:prstGeom><a:ln w="${e(s.lineWeight ?? 1.5)}">${fillXml(s.lineColor ?? "#4472C4")}</a:ln></p:spPr></p:cxnSp>`;
   }
@@ -34,6 +34,11 @@ function spXml(s, i, layout) {
     const cw = Math.round(e(s.width) / s.cols), rh = Math.round(e(s.height) / s.rows);
     const rows = s.values.map((r) => `<a:tr h="${rh}">${r.map((v) => `<a:tc><a:txBody><a:bodyPr/><a:lstStyle/>${paragraphs({ ...s, text: v, fontSize: s.fontSize ?? 18 })}</a:txBody><a:tcPr/></a:tc>`).join("")}</a:tr>`).join("");
     return `<p:graphicFrame><p:nvGraphicFramePr>${nv('<p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr>')}<p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="${e(s.left)}" y="${e(s.top)}"/><a:ext cx="${e(s.width)}" cy="${e(s.height)}"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="1" bandRow="1"/><a:tblGrid>${Array.from({ length: s.cols }, () => `<a:gridCol w="${cw}"/>`).join("")}</a:tblGrid>${rows}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
+  }
+  if (["chart", "smartart", "graphic", "media", "model3d", "image"].includes(s.kind)) {
+    // simples repères (non ouvrables dans PowerPoint) : seul `npm run verify` les utilise ; l'élève n'en reçoit jamais dans un départ
+    const uri = { chart: "http://schemas.openxmlformats.org/drawingml/2006/chart", smartart: "http://schemas.openxmlformats.org/drawingml/2006/diagram" }[s.kind] ?? "urn:dojo:" + s.kind;
+    return `<p:graphicFrame><p:nvGraphicFramePr>${nv("<p:cNvGraphicFramePr/>")}<p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="${e(s.left)}" y="${e(s.top)}"/><a:ext cx="${e(s.width)}" cy="${e(s.height)}"/></p:xfrm><a:graphic><a:graphicData uri="${uri}"/></a:graphic></p:graphicFrame>`;
   }
   const ph = s.ph ? `<p:ph ${phAttr(s.ph, i, layout)}/>` : "";
   const anchor = { top: "t", middle: "ctr", bottom: "b" }[s.valign ?? "top"] ?? "t";
@@ -53,6 +58,12 @@ function grpXml(name, members, id, i, layout) {
 
 const TREE_HEAD = '<p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>';
 
+function transitionXml(t) {
+  if (!t) return "";
+  const attrs = `${t.advClick === false ? ' advClick="0"' : ""}${t.advTime != null ? ` advTm="${Math.round(t.advTime * 1000)}"` : ""}`;
+  return `<p:transition spd="med"${attrs}><p:${t.effect}/></p:transition>`;
+}
+
 function slideXml(sl) {
   const out = [];
   const done = new Set();
@@ -70,7 +81,7 @@ function slideXml(sl) {
     }
   }
   const bg = sl.bg ? `<p:bg><p:bgPr>${fillXml(sl.bg)}<a:effectLst/></p:bgPr></p:bg>` : "";
-  return `${HEAD}<p:sld ${NS}${sl.hidden ? ' show="0"' : ""}><p:cSld>${bg}<p:spTree>${TREE_HEAD}${out.join("")}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`;
+  return `${HEAD}<p:sld ${NS}${sl.hidden ? ' show="0"' : ""}><p:cSld>${bg}<p:spTree>${TREE_HEAD}${out.join("")}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>${transitionXml(sl.transition)}</p:sld>`;
 }
 
 const THEME = `${HEAD}<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Dojo"><a:themeElements><a:clrScheme name="Dojo"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="44546A"/></a:dk2><a:lt2><a:srgbClr val="E7E6E6"/></a:lt2><a:accent1><a:srgbClr val="4472C4"/></a:accent1><a:accent2><a:srgbClr val="ED7D31"/></a:accent2><a:accent3><a:srgbClr val="A5A5A5"/></a:accent3><a:accent4><a:srgbClr val="FFC000"/></a:accent4><a:accent5><a:srgbClr val="5B9BD5"/></a:accent5><a:accent6><a:srgbClr val="70AD47"/></a:accent6><a:hlink><a:srgbClr val="0563C1"/></a:hlink><a:folHlink><a:srgbClr val="954F72"/></a:folHlink></a:clrScheme><a:fontScheme name="Dojo"><a:majorFont><a:latin typeface="Calibri Light"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="Dojo"><a:fillStyleLst>${'<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>'.repeat(3)}</a:fillStyleLst><a:lnStyleLst>${'<a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln>'.repeat(3)}</a:lnStyleLst><a:effectStyleLst>${"<a:effectStyle><a:effectLst/></a:effectStyle>".repeat(3)}</a:effectStyleLst><a:bgFillStyleLst>${'<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>'.repeat(3)}</a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`;
@@ -181,7 +192,7 @@ function readShape(node, ctx, group = null) {
   const nv = kid(node, tag === "p:sp" ? "p:nvSpPr" : tag === "p:cxnSp" ? "p:nvCxnSpPr" : tag === "p:pic" ? "p:nvPicPr" : "p:nvGraphicFramePr");
   const c = kid(nv, "p:cNvPr");
   const ph = path(nv, "p:nvPr/p:ph");
-  const s = { id: +c.attrs.id, name: c.attrs.name, alt: c.attrs.descr ?? "", group };
+  const s = { id: +c.attrs.id, name: c.attrs.name, alt: c.attrs.descr ?? "", group, visible: c.attrs.hidden !== "1" };
   if (tag === "p:cxnSp") {
     const sp = kid(node, "p:spPr");
     Object.assign(s, { kind: "line" }, xfrmOf(kid(sp, "a:xfrm")));
@@ -191,12 +202,16 @@ function readShape(node, ctx, group = null) {
     return s;
   }
   if (tag === "p:pic") {
-    return Object.assign(s, { kind: "image" }, xfrmOf(path(node, "p:spPr/a:xfrm")));
+    return Object.assign(s, { kind: descend(node, "a:videoFile").length || descend(node, "a:audioFile").length ? "media" : "image" }, xfrmOf(path(node, "p:spPr/a:xfrm")));
   }
   if (tag === "p:graphicFrame") {
     const x = kid(node, "p:xfrm");
     const tbl = descend(node, "a:tbl")[0];
-    if (!tbl) return Object.assign(s, { kind: descend(node, "c:chart").length || /chart/.test(JSON.stringify(path(node, "a:graphic/a:graphicData")?.attrs ?? "")) ? "chart" : "graphic" }, xfrmOf(x));
+    if (!tbl) {
+      const uri = path(node, "a:graphic/a:graphicData")?.attrs.uri ?? "";
+      const kind = /chart/.test(uri) ? "chart" : /diagram/.test(uri) ? "smartart" : /^urn:dojo:/.test(uri) ? uri.slice(9) : "graphic";
+      return Object.assign(s, { kind }, xfrmOf(x));
+    }
     const values = kids(tbl, "a:tr").map((tr) => kids(tr, "a:tc").map((tc) => textOf(kid(tc, "a:txBody")).text));
     const f0 = fontOf(descend(tbl, "a:txBody")[0], ctx.theme);
     return Object.assign(s, { kind: "table", values, rows: values.length, cols: values[0]?.length ?? 0, ...f0 }, xfrmOf(x));
@@ -237,6 +252,22 @@ function readTree(tree, ctx, group = null, out = []) {
     } else if (["p:sp", "p:cxnSp", "p:pic", "p:graphicFrame"].includes(n.tag)) out.push(readShape(n, ctx, group));
   }
   return out;
+}
+
+// Transition et animations d'une diapositive, lues dans son XML (celui d'un .pptx ou d'`exportAsBase64`). Les cibles d'animation sont
+// retrouvées par NOM de forme (les numéros peuvent changer à l'export).
+export function slideExtras(root) {
+  const tr = descend(root, "p:transition")[0];
+  let transition = null;
+  if (tr) {
+    const eff = tr.kids.find((k) => !/:(sndAc|extLst)$/.test(k.tag));
+    const dur = tr.attrs["p14:dur"];
+    transition = { effect: eff ? eff.tag.replace(/^[a-z0-9]+:/i, "") : "none", advClick: tr.attrs.advClick !== "0", advTime: tr.attrs.advTm != null ? +tr.attrs.advTm / 1000 : null, dur: dur != null ? +dur / 1000 : null };
+  }
+  const names = {};
+  for (const c of descend(root, "p:cNvPr")) names[c.attrs.id] = c.attrs.name;
+  const anims = descend(root, "p:cTn").filter((n) => n.attrs.presetClass).map((n) => ({ cls: n.attrs.presetClass, preset: +n.attrs.presetID, target: names[descend(n, "p:spTgt")[0]?.attrs.spid] }));
+  return { transition, anims };
 }
 
 export async function readPptx(data) {
@@ -301,6 +332,7 @@ export async function readPptx(data) {
       notes: undefined, // les notes ne sont pas dans le fichier simplifié : illisibles ici
       bg: bgNode ? colorOf(bgNode.kids.find((k) => k.tag === "a:solidFill" || k.tag === "a:noFill"), theme) : null, // pas de fond propre = celui du masque
       hidden: root.attrs.show === "0",
+      ...slideExtras(root),
     };
     sl.shapes.forEach((s, i) => (s.z = i));
     deck.slides.push(sl);

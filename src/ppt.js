@@ -4,6 +4,9 @@
 // depuis l'environnement de développement : l'écran Diagnostic + le contrôle qualité (validate.js) servent à le vérifier.
 // Règle : une propriété que cette version ne sait pas lire reste `undefined` dans le modèle, et le correcteur l'ignore.
 import { LAYOUTS, GEOS, findShape, findShapes, blankDeck, hex } from "./deck.js";
+import JSZip from "jszip";
+import { parse } from "./xml.js";
+import { slideExtras } from "./pptx.js";
 
 export const hasOffice = () => typeof Office !== "undefined" && typeof PowerPoint !== "undefined";
 export const supports = (v) => {
@@ -42,7 +45,7 @@ const VALIGN = { Top: "top", Middle: "middle", Bottom: "bottom" };
 const COARSE = { TextBox: "text", Placeholder: "text", GeometricShape: "shape", Line: "line", Table: "table", Image: "image", Group: "group", Chart: "chart", SmartArt: "smartart", Media: "media", Model3D: "model3d", Ink: "ink", Ole: "ole", Graphic: "graphic", Freeform: "shape", Callout: "shape" };
 const PH_TYPE = { Title: "title", CenterTitle: "title", Subtitle: "subtitle", Body: "body", Content: "body", Object: "body" };
 
-export async function readDeck() {
+export async function readDeck({ xml = false } = {}) {
   return run(async (ctx) => {
     const v8 = supports("1.8"), v10 = supports("1.10");
     const deck = blankDeck();
@@ -90,7 +93,7 @@ export async function readDeck() {
     });
     for (const { si, sh, t } of jobs) {
       const o = { id: Number(String(sh.id).replace(/\D/g, "")) || sh.id, name: sh.name, kind: COARSE[sh.type] ?? "shape", left: sh.left, top: sh.top, width: sh.width, height: sh.height, ps: sh.id };
-      if (v10) { o.rot = sh.rotation; o.alt = sh.altTextDescription; }
+      if (v10) { o.rot = sh.rotation; o.alt = sh.altTextDescription; o.visible = sh.visible; }
       if (TEXTY.has(sh.type)) {
         const tr = sh.textFrame.textRange, f = tr.font;
         Object.assign(o, { text: tr.text, fontName: f.name, fontSize: f.size, bold: f.bold, italic: f.italic, underline: f.underline && f.underline !== "None", color: hex(f.color), align: ALIGN[tr.paragraphFormat.horizontalAlignment], valign: VALIGN[sh.textFrame.verticalAlignment] });
@@ -112,6 +115,18 @@ export async function readDeck() {
     }
     deck.slides.forEach((s) => s.shapes.forEach((x, i) => (x.z = i)));
     deck.nextId = 9999;
+    // transitions et animations : pas dans l'API, mais dans le XML de la diapositive exportée (PowerPointApi 1.8)
+    if (xml && v8) {
+      const exps = slides.items.map((s) => s.exportAsBase64());
+      await ctx.sync();
+      for (let i = 0; i < exps.length; i++) {
+        try {
+          const z = await JSZip.loadAsync(exps[i].value, { base64: true });
+          const f = Object.keys(z.files).find((n) => /^ppt\/slides\/slide\d+\.xml$/.test(n));
+          Object.assign(deck.slides[i], slideExtras(parse(await z.file(f).async("string"))));
+        } catch { /* export illisible : transition et animations restent undefined (ignorés) */ }
+      }
+    }
     return deck;
   });
 }
@@ -127,6 +142,7 @@ function styleShape(sh, o) {
   for (const k of ["left", "top", "width", "height"]) if (has(k)) sh[k] = o[k];
   if (has("rot") && supports("1.10")) sh.rotation = o.rot;
   if (has("alt") && supports("1.10")) sh.altTextDescription = o.alt;
+  if (has("visible") && supports("1.10")) sh.visible = o.visible;
   if (has("fill")) o.fill ? sh.fill.setSolidColor(o.fill) : sh.fill.clear();
   if (has("lineColor")) {
     if (o.lineColor === null) sh.lineFormat.visible = false;
@@ -248,6 +264,8 @@ async function applyOne(op, off) {
       case "bg":
         if (supports("1.10")) slideAt(op.s).background.fill.setSolidFill({ color: op.color });
         break;
+      case "transition":
+      case "anim":
       case "notes":
       case "hide":
         break; // pas d'API : l'élève confirme (confirmA) ; la Solution ne peut pas l'écrire

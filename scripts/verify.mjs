@@ -13,6 +13,17 @@ const only = process.argv[2];
 let fail = 0;
 const bad = (id, msg) => { fail++; console.log(`✗ ${id.padEnd(22)} ${msg}`); };
 
+// lecteur de transitions/animations : XML typique d'un PowerPoint récent (AlternateContent, p14:dur, séquence d'animation)
+{
+  const { parse } = await import("../src/xml.js");
+  const { slideExtras } = await import("../src/pptx.js");
+  const xml = `<p:sld xmlns:p="p" xmlns:a="a" xmlns:mc="mc" xmlns:p14="p14"><p:cSld><p:spTree><p:sp><p:nvSpPr><p:cNvPr id="4" name="Pastille"/></p:nvSpPr></p:sp></p:spTree></p:cSld>
+  <mc:AlternateContent><mc:Choice Requires="p14"><p:transition spd="med" p14:dur="700" advTm="5000"><p:fade/></p:transition></mc:Choice><mc:Fallback><p:transition spd="med" advTm="5000"><p:fade/></p:transition></mc:Fallback></mc:AlternateContent>
+  <p:timing><p:tnLst><p:par><p:cTn id="1"><p:childTnLst><p:par><p:cTn id="5" presetID="10" presetClass="entr" presetSubtype="0" fill="hold"><p:stCondLst/><p:childTnLst><p:set><p:cBhvr><p:tgtEl><p:spTgt spid="4"/></p:tgtEl></p:cBhvr></p:set></p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing></p:sld>`;
+  const r = slideExtras(parse(xml));
+  const ok = r.transition?.effect === "fade" && r.transition.advTime === 5 && r.transition.dur === 0.7 && r.transition.advClick && r.anims.length === 1 && r.anims[0].cls === "entr" && r.anims[0].target === "Pastille";
+  if (!ok) bad("slideExtras", "lecture transition/animation : " + JSON.stringify(r));
+}
 { const seen = new Set(); for (const e of EXERCISES) { if (seen.has(e.id)) bad(e.id, "IDENTIFIANT EN DOUBLE"); seen.add(e.id); } }
 
 // propriétés comparées après l'aller-retour .pptx
@@ -26,12 +37,15 @@ for (const ex of EXERCISES) {
     const g0 = grade(ex, start);
     if (g0.pass) bad(ex.id, "le départ satisfait déjà tous les contrôles");
     if (!ex.sol) { bad(ex.id, "pas de solution (sol)"); continue; }
+    const confirmed = Object.fromEntries(ex.answers.filter((a) => a.kind === "confirm").map((a) => [a.id, true]));
     const end = runOps(ex.sol, cloneDeck(start));
-    const g1 = grade(ex, end);
+    const g1 = grade(ex, end, { confirmed });
     if (!g1.pass) { bad(ex.id, "la solution échoue : " + g1.items.filter((i) => !i.ok).map((i) => `${i.label} → ${i.msg ?? "non"}`).join(" ; ")); continue; }
+    // les repères (graphique, SmartArt…) et les animations ne sont pas écrits dans un .pptx ouvrable : pas d'aller-retour pour eux
+    if (end.slides.some((sl) => sl.anims.length || sl.shapes.some((x) => ["chart", "smartart", "graphic", "media", "model3d", "image"].includes(x.kind)))) continue;
     // mode fichier : aller-retour .pptx de l'état final, puis re-correction
     const back = await readPptx(await writePptx(end));
-    const g2 = grade(ex, back);
+    const g2 = grade(ex, back, { confirmed });
     if (!g2.pass) bad(ex.id, "après aller-retour .pptx : " + g2.items.filter((i) => !i.ok).map((i) => `${i.label} → ${i.msg ?? "non"}`).join(" ; "));
     if (back.slides.length !== end.slides.length) bad(ex.id, "nombre de diapositives changé par l'aller-retour .pptx");
     end.slides.forEach((s, i) => {

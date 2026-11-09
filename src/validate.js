@@ -4,6 +4,8 @@ import { loadSetup, applyOps, readDeck } from "./ppt.js";
 import { grade } from "./grader.js";
 import { compatible } from "./caps.js";
 
+const allConfirm = (ex) => Object.fromEntries(ex.answers.filter((a) => a.kind === "confirm").map((a) => [a.id, true]));
+
 export async function validateAll(exercises, onProgress = () => {}) {
   const out = [];
   const list = exercises.filter((e) => compatible(e));
@@ -12,9 +14,9 @@ export async function validateAll(exercises, onProgress = () => {}) {
     onProgress(++i, list.length, ex);
     try {
       await loadSetup(ex.setup);
-      const g0 = grade(ex, await readDeck());
+      const g0 = grade(ex, await readDeck({ xml: !!ex.xml }));
       await applyOps(ex.sol, { off: 0 });
-      const g1 = grade(ex, await readDeck());
+      const g1 = grade(ex, await readDeck({ xml: !!ex.xml }), { confirmed: allConfirm(ex) });
       const bad = g1.items.filter((x) => !x.ok);
       out.push({ id: ex.id, ok: g1.pass && !g0.pass, startPasses: g0.pass, fails: bad.map((b) => `${b.label} → ${b.msg ?? "non"}`) });
     } catch (e) {

@@ -310,7 +310,7 @@ async function runCheck(silent = false) {
   const ex = curEx();
   state.busy = true;
   try {
-    const deck = inOffice ? await ppt.readDeck() : state.fileDeck;
+    const deck = inOffice ? await ppt.readDeck({ xml: !!ex.xml }) : state.fileDeck;
     if (!deck) return;
     const res = grade(ex, deck, { confirmed: state.confirmed });
     state.result = res;

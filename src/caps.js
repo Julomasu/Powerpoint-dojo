@@ -47,12 +47,15 @@ export function requirementsOf(ex) {
   for (const a of ex.answers ?? []) {
     if (a.kind === "bg" || a.kind === "size") up("1.10");
     if (a.kind === "layout") up("1.8");
+    if (a.kind === "transition" || a.kind === "anim") up("1.8");
   }
-  return { api: need, tier: ex.tier ?? null };
+  return { api: need, tier: ex.tier ?? null, unwritable: [...(ex.setup ?? [])].some((o) => o.op === "transition" || o.op === "anim"), // PowerPoint ne laisse pas écrire ça : impossible de poser le départ
+    xml: (ex.answers ?? []).some((a) => a.kind === "transition" || a.kind === "anim") };
 }
 // `caps` absent (jamais détecté) ou mode fichier : tout est compatible
 export function compatible(ex, caps = getCaps()) {
   if (!caps?.sets) return true;
+  if (ex.unwritable ?? requirementsOf(ex).unwritable) return false;
   const m = maxSet(caps);
   return !m || ver(m) >= ver(ex.api ?? requirementsOf(ex).api);
 }

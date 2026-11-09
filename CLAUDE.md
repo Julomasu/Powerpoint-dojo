@@ -14,7 +14,7 @@ Un **modèle de présentation** (`src/deck.js`, unités en points, 960×540 = 16
 - jouées en JS pur par `npm run verify` (`runOps`), dans le vrai PowerPoint par `src/ppt.js` (`applyOps`, `loadSetup`), écrites en .pptx par `src/pptx.js` ;
 - le correcteur (`src/grader.js`, contrôles de `src/answers.js`) ne voit que le modèle, produit par `readDeck()` (PowerPoint) ou `readPptx()` (mode fichier).
 - **Règle d'or** : une propriété illisible dans une version = `undefined` dans le modèle = **ignorée** (jamais bloquante). Un contrôle entièrement ignoré s'affiche « non vérifiable ».
-- Contrôles : `shapeA`, `countA`, `slidesA`, `layoutA`, `bgA`, `sizeA`, `alignA`, `distributeA`, `ruleA`, `noOverlapA`, `insideA`, `contrastA`, `confirmA`. Sélecteurs de forme : `"Nom"`, `{name, ph, text, kind, group, idx, nth}`.
+- Contrôles : `transitionA`, `noTransitionA`, `animA`, `shapeA` (valeur `{exact}` pour la casse, `{min,max}`, `{approx,tol}`, `{near}`, `{oneOf}`), `countA`, `slidesA`, `layoutA`, `bgA`, `sizeA`, `alignA`, `distributeA`, `ruleA`, `noOverlapA`, `insideA`, `contrastA`, `confirmA`. Sélecteurs de forme : `"Nom"`, `{name, ph, text, kind, group, idx, nth}`.
 - Fichiers : `xml.js` (mini lecteur XML), `pptx.js`, `ppt.js`, `caps.js` (jeux PowerPointApi 1.1→1.10, `requirementsOf`), `profile.js`, `diagnostic.js`, `validate.js`, `skills.js` (GROUPS/SKILLS), `skilllessons.js`, `keys.js`, `preview.js` (aperçu SVG), `progress.js` + `cloud.js` + `config.js` (comme l'Excel Dojo), `main.js` (UI), `tracks/*.js` (exercices).
 
 ## Ce que l'API PowerPoint permet (d'après learn.microsoft.com, PowerPointApi 1.1→1.10)
@@ -33,7 +33,7 @@ Un **modèle de présentation** (`src/deck.js`, unités en points, 960×540 = 16
 ## Plan par lots
 1. ✅ Squelette, manifest, install, diagnostic, chapitre « Les bases » (31 exercices), mode fichier, progression locale, compte (config vide).
 2. ✅ Test pour sauter un chapitre (`grp:<id>` : 4 épreuves tirées dans le chapitre, 3 à réussir, 5 min chacune, sans aide ; réussi = `recordSkip`, tous ses exercices comptent faits via `doneMap()` sans XP) et test de niveau (`src/placement.js`, 12 questions « bases » pour l'instant ; chaque nouveau chapitre ajoute ses questions, cible ≈ 24 ; les chapitres tout juste proposent d'être sautés). Pas de test pour sauter une « ceinture » : le parcours PowerPoint n'a que des chapitres.
-3. Ruban onglet par onglet (≈150 exercices) ; lecture XML via `exportAsBase64` pour transitions/animations.
+3. 🟡 Ruban (en cours) : Accueil (42), Insertion (27), Création/Transitions/Animations (≈24), Diaporama/Révision/Affichage (≈23) = ≈110 exercices en `tracks/ruban-*.js`. **Transitions/animations lues dans le XML** de `slide.exportAsBase64()` (JSZip + `slideExtras()` dans `pptx.js`) : `transitionA`, `animA`, flag `xml` déduit par `requirementsOf` ; cibles d'animation retrouvées par NOM de forme. Les ops `transition`/`anim` ne s'écrivent PAS dans PowerPoint : un exercice dont le **départ** en contient (`unwritable`) est masqué dans l'add-in et reste jouable en mode fichier (transitions seulement : le .pptx généré n'écrit pas les animations). Reste : masque des diapositives, hiérarchie de mise en page, plus d'exercices de mise en forme avancée pour atteindre ≈150.
 4. Certification (générateurs à graine, 5 niveaux, 7 domaines, /100) + `verify` sur plusieurs tirages.
 5. Comptes : activer Supabase (`supabase/schema.sql`, table `pptdojo_progress`) — **demander à Jules l'URL et la clé publishable**.
 6. Cas de métier M&A, « sans Microsoft 365 » (`caps.js` + badges), volume (500+).

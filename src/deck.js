@@ -58,9 +58,9 @@ export const contrast = (a, b) => {
 export const blankDeck = () => ({ slideW: SLIDE_W, slideH: SLIDE_H, slides: [], nextId: 2 });
 
 let uid = 0;
-const newSlide = (layout = "blank") => ({ id: ++uid, layout, shapes: [], notes: "", bg: null, hidden: false });
+const newSlide = (layout = "blank") => ({ id: ++uid, layout, shapes: [], notes: "", bg: null, hidden: false, transition: null, anims: [] });
 
-const SHAPE_DEFAULTS = { text: "", fill: null, lineColor: null, lineWeight: null, fontName: "Calibri", fontSize: 18, bold: false, italic: false, underline: false, color: "#000000", align: "left", valign: "top", alt: "", rot: 0, group: null, link: null, z: 0 };
+const SHAPE_DEFAULTS = { text: "", fill: null, lineColor: null, lineWeight: null, fontName: "Calibri", fontSize: 18, bold: false, italic: false, underline: false, color: "#000000", align: "left", valign: "top", alt: "", rot: 0, group: null, link: null, visible: true, z: 0 };
 
 function makeShape(deck, o) {
   const kind = o.kind ?? "rect";
@@ -81,7 +81,7 @@ function makeShape(deck, o) {
   }
   return s;
 }
-const KIND_NAMES = { rect: "Rectangle", roundRect: "Rectangle : coins arrondis", ellipse: "Ellipse", triangle: "Triangle isocèle", diamond: "Losange", arrowRight: "Flèche : droite", chevron: "Chevron", star: "Étoile : 5 branches", line: "Connecteur droit", text: "ZoneTexte", table: "Tableau", image: "Image" };
+const KIND_NAMES = { rect: "Rectangle", roundRect: "Rectangle : coins arrondis", ellipse: "Ellipse", triangle: "Triangle isocèle", diamond: "Losange", arrowRight: "Flèche : droite", chevron: "Chevron", star: "Étoile : 5 branches", line: "Connecteur droit", text: "ZoneTexte", table: "Tableau", image: "Image", chart: "Graphique", smartart: "Diagramme", graphic: "Graphique SVG", media: "Média", model3d: "Modèle 3D" };
 const defaultName = (kind, id) => `${KIND_NAMES[kind] ?? "Forme"} ${id}`;
 
 function addPlaceholders(deck, slide, layout) {
@@ -110,7 +110,7 @@ export function findShapes(slide, sel) {
 }
 export const findShape = (slide, sel) => findShapes(slide, sel)[0];
 
-const PROP_KEYS = ["name", "text", "left", "top", "width", "height", "fill", "lineColor", "lineWeight", "fontName", "fontSize", "bold", "italic", "underline", "color", "align", "valign", "alt", "rot", "link", "values"];
+const PROP_KEYS = ["name", "text", "left", "top", "width", "height", "fill", "lineColor", "lineWeight", "fontName", "fontSize", "bold", "italic", "underline", "color", "align", "valign", "alt", "rot", "link", "values", "visible", "rows", "cols"];
 
 function applyProps(s, props) {
   for (const [k, v] of Object.entries(props)) {
@@ -206,6 +206,14 @@ export function applyOp(deck, op) {
       reindexZ(s);
       break;
     }
+    case "transition":
+      sl().transition = op.effect ? { effect: op.effect, advClick: op.advClick !== false, advTime: op.advTime ?? null, dur: op.dur ?? null } : null;
+      break;
+    case "anim": {
+      const s = sl(), t = target();
+      s.anims.push({ cls: op.cls, preset: op.preset ?? 0, target: t.name });
+      break;
+    }
     case "notes":
       sl().notes = op.text;
       break;
@@ -233,7 +241,7 @@ export function applyOp(deck, op) {
       s.shapes.splice(s.shapes.indexOf(t), 1);
       if (op.to === "front") s.shapes.push(t);
       else if (op.to === "back") s.shapes.unshift(t);
-      else if (op.to === "forward") s.shapes.splice(Math.min(s.shapes.length, op.index + 1), 0, t);
+      else if (op.to === "forward") s.shapes.splice(Math.min(s.shapes.length, op.index), 0, t); // op.index = rang final voulu
       reindexZ(s);
       break;
     }

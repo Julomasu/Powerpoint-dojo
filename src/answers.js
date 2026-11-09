@@ -22,6 +22,7 @@ function matchProp(key, actual, want) {
       if (want.max != null && actual > want.max) return `${lbl} est trop grand${key === "fontSize" ? "e" : ""} (${num(actual)}, au plus ${want.max})`;
       return null;
     }
+    if ("exact" in want) return String(actual ?? "") === want.exact ? null : `${lbl} : respecte exactement les majuscules et minuscules`;
     if ("oneOf" in want) return want.oneOf.some((w) => matchProp(key, actual, w) === null) ? null : `${lbl} n'est pas celui demandé`;
   }
   if (["fill", "lineColor", "color"].includes(key)) {
@@ -168,6 +169,35 @@ export const contrastA = (slide, sel, min, label) => ({
     const bg = s.fill ?? deck.slides[slide].bg ?? "#FFFFFF";
     const c = contrast(s.color, bg);
     return c >= min || `Contraste insuffisant : ${num(c)}:1 (il faut au moins ${min}:1).`;
+  },
+});
+
+// Transition / animations : lues dans le XML de la diapositive (undefined = non lisible ici, donc ignoré)
+export const transitionA = (slide, want, label) => ({
+  kind: "transition", label,
+  test(deck) {
+    const s = deck.slides[slide];
+    if (!s) return `Il n'y a pas de diapositive ${slide + 1}.`;
+    if (s.transition === undefined) return { ok: true, skip: true };
+    if (!s.transition) return "Aucune transition sur cette diapositive.";
+    const t = s.transition;
+    if (want.effect && !(Array.isArray(want.effect) ? want.effect : [want.effect]).includes(t.effect)) return `La transition est « ${t.effect} », pas celle demandée.`;
+    if (want.advClick !== undefined && t.advClick !== want.advClick) return want.advClick ? "L'avance au clic doit rester cochée." : "Décoche « Au clic ».";
+    if (want.advTime !== undefined && (t.advTime == null || Math.abs(t.advTime - want.advTime) > 0.05)) return `Le délai d'avance automatique est ${t.advTime ?? "absent"} s au lieu de ${want.advTime} s.`;
+    if (want.dur !== undefined && (t.dur == null || Math.abs(t.dur - want.dur) > 0.05)) return `La durée est ${t.dur ?? "absente"} s au lieu de ${want.dur} s.`;
+    return true;
+  },
+});
+export const noTransitionA = (slide, label) => ({ kind: "transition", label, test: (deck) => deck.slides[slide]?.transition === undefined ? { ok: true, skip: true } : !deck.slides[slide].transition || "Cette diapositive a encore une transition." });
+export const animA = (slide, want, label) => ({
+  kind: "anim", label,
+  test(deck) {
+    const s = deck.slides[slide];
+    if (!s) return `Il n'y a pas de diapositive ${slide + 1}.`;
+    if (s.anims === undefined) return { ok: true, skip: true };
+    const hits = s.anims.filter((a) => (want.cls ? a.cls === want.cls : true) && (want.target ? a.target === want.target : true));
+    const n = want.count ?? 1;
+    return hits.length >= n || (hits.length ? `Il y a ${hits.length} animation(s) de ce type, il en faut ${n}.` : "Je ne trouve pas cette animation.");
   },
 });
 
