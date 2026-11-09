@@ -1,0 +1,7 @@
+node_modules
+dist
+.vercel
+.DS_Store
+.claude
+.dojo-cmd.json
+.dojo-report.txt
