@@ -310,7 +310,8 @@ async function runCheck(silent = false) {
   const ex = curEx();
   state.busy = true;
   try {
-    const deck = inOffice ? await ppt.readDeck({ xml: !!ex.xml }) : state.fileDeck;
+    // mode fichier : un exercice 100 % « à confirmer » n'a rien à lire dans un fichier, on corrige sur son départ
+    const deck = inOffice ? await ppt.readDeck({ xml: !!ex.xml }) : state.fileDeck ?? (ex.answers.every((a) => a.kind === "confirm") ? runOps(ex.setup) : null);
     if (!deck) return;
     const res = grade(ex, deck, { confirmed: state.confirmed });
     state.result = res;
