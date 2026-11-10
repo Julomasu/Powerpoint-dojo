@@ -8,6 +8,7 @@ import { EXERCISES } from "../src/exercises.js";
 import { runOps, cloneDeck } from "../src/deck.js";
 import { grade } from "../src/grader.js";
 import { writePptx, readPptx } from "../src/pptx.js";
+import { certSamples, GENERATORS } from "../src/certif/index.js";
 
 const only = process.argv[2];
 let fail = 0;
@@ -30,7 +31,8 @@ const bad = (id, msg) => { fail++; console.log(`✗ ${id.padEnd(22)} ${msg}`); }
 const CMP = ["name", "text", "left", "top", "width", "height", "fill", "lineColor", "lineWeight", "fontName", "fontSize", "bold", "italic", "underline", "color", "align", "valign", "alt", "rot", "group", "ph"];
 const same = (a, b, k) => (typeof a === "number" && typeof b === "number" ? Math.abs(a - b) < 0.1 : (a ?? null) === (b ?? null));
 
-for (const ex of EXERCISES) {
+const ALL = [...EXERCISES, ...certSamples(Number(process.env.CERT_SEEDS ?? 4))];
+for (const ex of ALL) {
   if (only && ex.id !== only) continue;
   try {
     const start = runOps(ex.setup);
@@ -60,5 +62,5 @@ for (const ex of EXERCISES) {
     bad(ex.id, "erreur : " + e.message);
   }
 }
-console.log(fail ? `\n${fail} problème(s).` : `\n✓ ${EXERCISES.length} exercices vérifiés (départ, solution, aller-retour .pptx).`);
+console.log(fail ? `\n${fail} problème(s).` : `\n✓ ${EXERCISES.length} exercices + ${ALL.length - EXERCISES.length} épreuves de certification (${GENERATORS.length} générateurs) vérifiés (départ, solution, aller-retour .pptx).`);
 process.exit(fail ? 1 : 0);

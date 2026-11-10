@@ -6,7 +6,8 @@ import { LESSONS } from "./skilllessons.js";
 import { grade } from "./grader.js";
 import { runOps } from "./deck.js";
 import { withKeys, hasKeys, ESSENTIALS } from "./keys.js";
-import { getProgress, onProgressChange, recordWin, getStreak, totalXp, exportProgress, importProgress, getCerts, getSkips, recordSkip } from "./progress.js";
+import { drawExam, fromId, scoreOf, breakdown, bandOf, BANDS, FORMATS, LEVEL_NAMES, CATS } from "./certif/index.js";
+import { getProgress, onProgressChange, recordWin, getStreak, totalXp, exportProgress, importProgress, getCerts, getSkips, recordSkip, recordCert } from "./progress.js";
 import { QUESTIONS, getPlacement, savePlacement, acquiredGroups } from "./placement.js";
 import * as cloud from "./cloud.js";
 import { icon } from "./ui.js";
@@ -26,7 +27,7 @@ const store = {
 };
 
 let inOffice = false; // vrai quand le Dojo tourne dans un volet PowerPoint
-const state = { tab: "formation", screen: null, skill: null, id: null, loaded: false, loading: false, warn: false, result: null, won: false, tip: false, hint: false, sol: false, startedAt: 0, confirmed: {}, deck: null, fileDeck: null, diag: null, val: null, msg: "", exam: null, quiz: null };
+const state = { tab: "formation", screen: null, skill: null, id: null, loaded: false, loading: false, warn: false, result: null, won: false, tip: false, hint: false, sol: false, startedAt: 0, confirmed: {}, deck: null, fileDeck: null, diag: null, val: null, msg: "", exam: null, quiz: null, cert: null, certEx: null };
 const withApi = EXERCISES.map((e) => Object.assign(e, requirementsOf(e)));
 const visible = (e) => !inOffice || compatible(e);
 const os = () => detectOs();
@@ -158,12 +159,84 @@ function examResultView() {
     <div class="win-actions"><button class="btn-main" data-action="examend">Retour à la formation</button></div></div>`;
 }
 
+const ring = (score, label = "/100") => `<div class="ring" style="--p:${Math.round(score)}" role="img" aria-label="Score ${Math.round(score)} sur 100"><b>${Math.round(score)}</b><small>${label}</small></div>`;
+const fmtDate = (t) => new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+
 function certView() {
-  const certs = getCerts();
+  const certs = getCerts(), last = certs.at(-1), best = certs.length ? Math.max(...certs.map((c) => c.score)) : null;
   return `<div class="screen-head"><h1>Certification</h1></div>
-    <div class="cert-hero intro"><h2>Un score sur 100</h2><p>100 = champion du monde de PowerPoint. Des épreuves tirées au hasard à chaque passage (jamais deux fois le même énoncé), sans aide, notées par niveau.</p><small>Fondamentaux → Pratique courante → Avancé → Expert → Champion · 20 épreuves en 90 min, ou 10 en 40 min (express).</small></div>
-    <div class="empty"><b>Bientôt disponible</b><p>La certification arrive au lot 4 (générateurs d'épreuves à graine). Elle sera disponible après la formation, rien n'est verrouillé.</p></div>
-    ${certs.length ? `<h3 class="sec">Tes passages</h3>${certs.map((c) => `<div class="tile static"><div><b>${Math.round(c.score)}/100</b><small>${new Date(c.at).toLocaleDateString("fr-FR")}</small></div></div>`).join("")}` : ""}`;
+    ${last ? `<div class="cert-hero">${ring(last.score)}<div><small>Dernier passage · ${fmtDate(last.at)}</small><h2>${esc(bandOf(last.score)[1])}</h2><p>${esc(bandOf(last.score)[2])}</p><small>Meilleur score : ${Math.round(best)}/100</small></div></div>`
+      : `<div class="cert-hero intro"><h2>Quel est ton niveau sur 100 ?</h2><p>100 = champion du monde de PowerPoint. Des épreuves tirées au hasard à chaque passage (jamais deux fois le même énoncé), <b>sans aide</b>, notées selon leur niveau : ${LEVEL_NAMES.slice(1).join(" → ")}.</p></div>`}
+    <div class="cert-go"><button class="btn-main" data-action="certstart" data-id="full">${esc(FORMATS.full.name)}<small>${esc(FORMATS.full.blurb)}</small></button>
+      <button class="btn" data-action="certstart" data-id="express">${esc(FORMATS.express.name)} · ${esc(FORMATS.express.blurb)}</button></div>
+    <p class="note" style="margin:0 0 8px">${inOffice ? "Chaque épreuve s'écrit dans ta présentation (qui est remplacée). " : "Mode fichier : tu télécharges chaque épreuve en .pptx et tu déposes ton fichier. "}Tu peux passer une épreuve et y revenir ; les corrections s'affichent à la fin.</p>
+    <h3 class="sec">Les paliers</h3><div class="bands">${BANDS.map(([min, name]) => `<div class="band ${last && bandOf(last.score)[0] === min ? "on" : ""}"><b>${min}+</b><span>${esc(name)}</span></div>`).join("")}</div>
+    ${certs.length ? `<h3 class="sec">Tes passages</h3>${[...certs].reverse().slice(0, 8).map((c) => `<div class="tile static"><div style="flex:1"><b>${esc(bandOf(c.score)[1])}</b><small>${fmtDate(c.at)} · ${c.kind === "full" ? "complète" : "express"}</small></div><span class="mini-score">${Math.round(c.score)}</span></div>`).join("")}` : ""}`;
+}
+
+function certExerciseView() {
+  const c = state.cert, it = c.items[c.i], ex = state.certEx;
+  if (!ex) return `<div class="live">Préparation de l'épreuve…</div>`;
+  const preview = runOps(ex.setup);
+  const chips = c.items.map((x, n) => `<button class="chip-n ${n === c.i ? "cur" : ""} ${x.f != null ? "done" : ""}" data-action="certopen" data-id="${n}">${n + 1}</button>`).join("");
+  const action = inOffice
+    ? (state.warn ? `<div class="result" style="border-color:var(--bad)"><b>Cette présentation contient déjà du travail.</b> Le Dojo va la remplacer. <div class="row"><button class="btn primary" data-action="certaccept">Oui, utiliser cette présentation</button><button class="btn" data-action="certquit">Annuler l'examen</button></div></div>` : `<button class="btn-main" data-action="certvalidate">${it.f != null ? "Revalider cette épreuve" : "Valider cette épreuve"}</button><div class="row"><button class="link" data-action="certreload">Recharger l'épreuve</button></div>`)
+    : `<button class="btn-main" data-action="download">1. Télécharger l'épreuve (.pptx)</button><label class="btn" style="display:block;text-align:center;margin-top:8px;cursor:pointer">2. Déposer ma présentation<input type="file" accept=".pptx" data-action="upload" hidden></label>`;
+  return `<div class="exbar"><div class="crumb"><b>Certification</b> · épreuve ${c.i + 1}/${c.items.length} · ${esc(LEVEL_NAMES[it.level])}</div><span class="pill warn">${icon("clock", 13)} <span id="ctimer">--:--</span></span></div>
+    <div class="chips-n">${chips}</div>
+    <h2 class="ex-title">${esc(ex.title)}</h2>
+    <p class="ex-story">${esc(ex.story)}</p>
+    <details class="data" ${inOffice ? "" : "open"}><summary>${icon("eye", 16)} Voir la diapositive de départ</summary><div style="display:grid;gap:6px;margin-top:6px">${preview.slides.map((_, i) => slideSvg(preview, i)).join("")}</div></details>
+    <div class="actions">${action}</div>
+    ${it.f != null ? `<p class="note">✓ Épreuve enregistrée. Tu peux la retravailler et la revalider tant que le temps court.</p>` : ""}
+    <div class="row">${c.i + 1 < c.items.length ? `<button class="btn" data-action="certnext">Épreuve suivante</button>` : ""}<button class="btn primary" data-action="certfinish">Terminer l'examen</button><button class="link" data-action="certquit">Abandonner</button></div>`;
+}
+
+function certResultView() {
+  const c = state.cert, score = scoreOf(c.items), [, band, blurb] = bandOf(score), parts = breakdown(c.items);
+  return `<div class="exbar"><span class="crumb">Certification · résultat</span></div>
+    <div class="cert-hero">${ring(score)}<div><small>${c.kind === "full" ? "Certification complète" : "Express"} · ${fmtTime(c.ms)}</small><h2>${esc(band)}</h2><p>${esc(blurb)}</p></div></div>
+    <h3 class="sec">Par domaine</h3><div class="bars">${parts.map((p) => `<div class="bar-row"><span>${esc(p.name)}</span><div class="meter"><i style="width:${p.pct}%"></i></div><b>${p.pct}%</b></div>`).join("")}</div>
+    <h3 class="sec">Corrections</h3>${c.items.map((it, n) => { const ex = fromId(`cx~${it.gen}~${it.seed}`); return `<details class="corr"><summary><span>${n + 1}. ${esc(ex.title)} · ${esc(LEVEL_NAMES[it.level])}</span><small>${Math.round((it.f ?? 0) * 100)} %</small></summary><p>${esc(ex.story)}</p><ul class="cl">${(it.res ?? ex.answers.map((a) => ({ label: a.label, ok: false, msg: "Non rendue" }))).map((r) => `<li class="${r.ok ? "cl-ok" : "cl-ko"}">${icon(r.ok ? "check" : "x", 16)}<div><div class="cl-label">${esc(r.label)}</div>${!r.ok && r.msg ? `<div class="cl-msg">${esc(r.msg)}</div>` : ""}</div></li>`).join("")}</ul></details>`; }).join("")}
+    <div class="win-actions" style="margin-top:14px"><button class="btn-main" data-action="certend">Terminer</button></div>`;
+}
+
+// ───── examen de certification ─────
+async function certOpen(i) {
+  const c = state.cert;
+  c.i = i;
+  state.fileDeck = null; state.warn = false;
+  state.certEx = fromId(`cx~${c.items[i].gen}~${c.items[i].seed}`);
+  render();
+  if (inOffice) await certLoad(false);
+}
+async function certLoad(force) {
+  try {
+    if (!force && !(await ppt.isDojoDeck()) && (await ppt.deckHasWork())) { state.warn = true; return render(); }
+    await ppt.markDojoDeck();
+    await ppt.loadSetup(state.certEx.setup);
+    state.warn = false;
+  } catch (e) { state.msg = e.message; }
+  render();
+}
+async function certValidate() {
+  const c = state.cert, ex = state.certEx, it = c.items[c.i];
+  try {
+    const deck = inOffice ? await ppt.readDeck({ xml: !!ex.xml }) : state.fileDeck;
+    if (!deck) return;
+    const res = grade(ex, deck, {});
+    it.f = res.fraction; it.res = res.items;
+  } catch (e) { state.msg = e.message; }
+  render();
+}
+function certFinish() {
+  const c = state.cert;
+  c.ms = Date.now() - c.startedAt; c.done = true;
+  const score = scoreOf(c.items);
+  recordCert({ at: Date.now(), kind: c.kind, score, ms: c.ms, parts: breakdown(c.items).map((p) => ({ cat: p.cat, pct: p.pct })) });
+  cloud.schedulePush();
+  clearInterval(timerId);
+  render();
 }
 
 function meView() {
@@ -256,20 +329,27 @@ function render() {
   const app = document.getElementById("app");
   let body;
   if (!welcomed() && !state.screen) body = welcomeView();
+  else if (state.cert) body = state.cert.done ? certResultView() : certExerciseView();
   else if (state.screen === "quiz") body = quizView();
   else if (state.exam?.done) body = `<div class="exbar"><span class="crumb">Test · ${esc(state.exam.name)}</span></div>` + examResultView();
   else if (state.screen === "ex") body = exerciseView();
   else if (state.screen === "skill") body = skillView(state.skill);
   else if (state.screen === "diag") body = diagView();
   else body = state.tab === "certif" ? certView() : state.tab === "moi" ? meView() : formationView();
-  const nav = welcomed() && state.screen !== "ex" ? bottomNav() : "";
+  const nav = welcomed() && state.screen !== "ex" && !state.cert ? bottomNav() : "";
   app.className = nav ? "has-nav" : "";
   const scroll = window.scrollY;
   app.innerHTML = body + nav;
   if (state.keepScroll) window.scrollTo(0, scroll);
   state.keepScroll = false;
   clearInterval(timerId);
-  if (state.screen === "ex" && !state.won) timerId = setInterval(() => { const t = document.getElementById("timer"); const el = Date.now() - state.startedAt; if (t) t.textContent = fmtTime(el); if (state.exam && el > 300000) { state.exam.i++; advanceExam(); } }, 1000);
+  if (state.cert && !state.cert.done) timerId = setInterval(() => {
+    const left = state.cert.limitMs - (Date.now() - state.cert.startedAt);
+    const t = document.getElementById("ctimer");
+    if (t) t.textContent = left > 0 ? fmtTime(left) : "0:00";
+    if (left <= 0) certFinish();
+  }, 1000);
+  else if (state.screen === "ex" && !state.won) timerId = setInterval(() => { const t = document.getElementById("timer"); const el = Date.now() - state.startedAt; if (t) t.textContent = fmtTime(el); if (state.exam && el > 300000) { state.exam.i++; advanceExam(); } }, 1000);
 }
 
 // ───── logique d'un exercice ─────
@@ -370,6 +450,21 @@ const actions = {
   async load() { await loadEx(true); },
   async accept() { await loadEx(true); },
   async check() { await runCheck(false); },
+  async certstart(el) {
+    const kind = el.dataset.id;
+    const items = drawExam(kind, { ok: (ex) => !inOffice || compatible(ex) });
+    state.cert = { kind, items, i: 0, startedAt: Date.now(), limitMs: FORMATS[kind].minutes * 60000, done: false };
+    await certOpen(0);
+    return "skip";
+  },
+  async certopen(el) { await certOpen(Number(el.dataset.id)); return "skip"; },
+  async certnext() { await certOpen(state.cert.i + 1); return "skip"; },
+  async certvalidate() { await certValidate(); return "skip"; },
+  async certreload() { await certLoad(true); return "skip"; },
+  async certaccept() { await certLoad(true); return "skip"; },
+  certfinish() { certFinish(); return "skip"; },
+  certquit() { state.cert = null; clearInterval(timerId); },
+  certend() { state.cert = null; state.tab = "certif"; },
   exam(el) { beginExam(el.dataset.id); return "skip"; },
   examnext() { state.exam.i++; advanceExam(); return "skip"; },
   examskip() { state.exam.i++; advanceExam(); return "skip"; },
@@ -389,7 +484,7 @@ const actions = {
     } else state.solDeck = runOps([...ex.setup, ...ex.sol]);
   },
   confirm(el) { state.confirmed[el.dataset.id] = true; runCheck(false); return "skip"; },
-  async download() { await downloadExercise(curEx()); },
+  async download() { await downloadExercise(state.cert ? state.certEx : curEx()); },
   async diag() { Object.assign(state, { screen: "diag" }); },
   async rundiag() { state.diag = []; render(); state.diag = await diagnose((s) => { state.diag = [...s]; render(); }); },
   async runval() {
@@ -419,7 +514,7 @@ document.addEventListener("change", async (ev) => {
   if (el.dataset?.action === "upload" && el.files?.[0]) {
     try {
       state.fileDeck = await readUpload(el.files[0]);
-      await runCheck(false);
+      if (state.cert) await certValidate(); else await runCheck(false);
     } catch (e) {
       state.result = { items: [], error: "Fichier illisible : " + e.message };
       render();
