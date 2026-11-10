@@ -4,8 +4,10 @@ Add-in PowerPoint (Office.js) d'entraînement, en français, jumeau de l'Excel D
 
 ## Fonctionnement
 - Site statique Vite + JS vanille (`src/`), affiché comme volet d'add-in dans PowerPoint, ou comme page web (« mode fichier » : téléchargement d'un .pptx, dépôt pour correction).
-- Production prévue : projet Vercel `powerpoint-dojo` (**à connecter par Jules**). **Un push sur `main` redéploiera la production.** Ne fusionner que sur demande explicite.
+- En ligne : **https://slidesdojo.vercel.app** (projet Vercel `slidesdojo`, adresse définitive : `HOSTED_URL` dans `src/manifest.js`). **Un push sur `main` redéploie la production.** Ne fusionner que sur demande explicite.
 - `/install` génère le `manifest.xml` (`src/manifest.js`). **Ne jamais changer** `HOSTED_ID` ni l'adresse du site une fois publiés.
+- **Manifests du dépôt** : `manifest.local.xml` (test, `localhost:3000`, identifiant de TEST) et `manifest.prod.xml` (en ligne), générés par `npm run manifests`. Ne PAS les confondre : en installant le manifest local par erreur, l'add-in apparaît mais sans logo et le volet ne s'ouvre pas (diagnostiqué chez Jules le 2026-11-10).
+- **Installation Windows validée (Jules, sans droits administrateur)** : le menu « Charger mon complément » n'existe pas dans sa version ; ce qui marche = déclarer le manifest dans le registre `HKCU:\Software\Microsoft\Office\16.0\WEF\Developer` (nom = `HOSTED_ID`, valeur = chemin du manifest), puis redémarrer PowerPoint → Accueil → Compléments → « Developer Add-ins ». La page `/install` génère une commande PowerShell qui contient le manifest (dossier `%USERPROFILE%\PowerPointDojo`, distinct de celui d'Excel). Vider le cache après une mise à jour : `%LOCALAPPDATA%\Microsoft\Office\16.0\Wef`. Mac : dossier `~/Library/Containers/com.microsoft.Powerpoint/Data/Documents/wef` (non testé).
 - Branche de travail lot 1 : `claude/powerpoint-dojo-lot1`.
 
 ## Architecture (idée centrale)
