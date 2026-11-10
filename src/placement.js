@@ -14,6 +14,12 @@ export const QUESTIONS = [
   Q("bases", "À quoi sert le volet Sélection ?", ["Choisir un thème", "Lister, nommer et masquer les formes de la diapositive", "Corriger l'orthographe", "Lancer le diaporama"], 1, "Il liste toutes les formes, même superposées."),
   Q("bases", "Une forme est cachée derrière une autre. Pour la ramener devant :", ["Mettre au premier plan", "Faire pivoter", "Dissocier", "Réinitialiser"], 0, "L'ordre d'empilement (ordre Z) se règle dans Organiser."),
   Q("bases", "Que décrit un bon texte de remplacement (alt) ?", ["La couleur de la forme", "L'information que porte l'image ou le schéma", "Le nom du fichier", "La taille en points"], 1, "Il décrit l'information pour qui ne voit pas l'image."),
+  Q("accueil", "Que fait « Reproduire la mise en forme » (le pinceau) ?", ["Elle copie le texte d'une forme", "Elle copie la mise en forme d'une forme vers une autre", "Elle duplique la diapositive", "Elle supprime la mise en forme"], 1, "Le pinceau applique police, couleur, remplissage… sans le texte."),
+  Q("accueil", "Pour répartir des formes avec des espaces égaux, on utilise…", ["Organiser → Aligner → Répartir", "Grouper", "Faire pivoter", "Insertion → Tableau"], 0, "Répartir horizontalement/verticalement égalise les espaces."),
+  Q("accueil", "Quel bouton retire toute la mise en forme d'un texte ?", ["Effacer toute la mise en forme (la gomme)", "Reproduire la mise en forme", "Casse", "Interligne"], 0, "La gomme A revient à la police du thème."),
+  Q("design", "Combien d'arguments au maximum sur une diapositive de message ?", ["Dix", "Trois", "Aucune limite", "Un seul mot"], 1, "Un message, trois preuves au maximum."),
+  Q("design", "Quel contraste texte/fond vise-t-on au minimum ?", ["1,5:1", "3:1", "4,5:1", "21:1 exactement"], 2, "4,5:1 est le seuil de lisibilité courant (WCAG)."),
+  Q("design", "Combien de polices différentes au maximum dans un deck soigné ?", ["Deux", "Cinq", "Dix", "Une par diapositive"], 0, "Une pour les titres, une pour le texte."),
 ];
 export const KEY = "powerpoint-dojo.placement";
 export const getPlacement = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } };

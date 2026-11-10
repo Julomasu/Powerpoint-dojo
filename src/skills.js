@@ -5,12 +5,12 @@ export const GROUPS = [
   { id: "accueil", name: "Ruban : Accueil", color: "#2B7A78", ink: "#fff", blurb: "Presse-papiers, diapositives, police, paragraphe, dessin, modification." },
   { id: "insertion", name: "Ruban : Insertion", color: "#3A6EA5", ink: "#fff", blurb: "Tableaux, images, icônes, SmartArt, graphiques, liens, médias." },
   { id: "creation", name: "Création, transitions, animations", color: "#7B4FA2", ink: "#fff", blurb: "Thèmes, format, arrière-plan, transitions, animations." },
-  { id: "design", name: "Mise en page et design", color: "#B5651D", ink: "#fff", blurb: "Un message par slide, hiérarchie, contraste, grille.", soon: true },
+  { id: "design", name: "Mise en page et design", color: "#B5651D", ink: "#fff", blurb: "Un message par slide, hiérarchie, contraste, grille." },
   { id: "donnees", name: "Graphiques et tableaux", color: "#4C8C4A", ink: "#fff", blurb: "Données dans PowerPoint : tableaux, graphiques, SmartArt.", soon: true },
   { id: "masque", name: "Masque et modèles", color: "#8A5A44", ink: "#fff", blurb: "Masque des diapositives, mises en page, modèles.", soon: true },
   { id: "diaporama", name: "Diaporama et collaboration", color: "#A23E48", ink: "#fff", blurb: "Présenter, révision, accessibilité, affichage." },
-  { id: "metiers", name: "Cas de métier", color: "#1F3864", ink: "#fff", blurb: "Teaser, one-pager, strip profile, football field, bridge, timeline de process.", soon: true },
-  { id: "sans365", name: "Sans Microsoft 365", color: "#6B6F76", ink: "#fff", blurb: "Ce qui marche partout (2016, 2019) et les fonctions récentes signalées.", soon: true },
+  { id: "metiers", name: "Cas de métier", color: "#1F3864", ink: "#fff", blurb: "Teaser, one-pager, strip profile, football field, bridge, timeline de process." },
+  { id: "sans365", name: "Sans Microsoft 365", color: "#6B6F76", ink: "#fff", blurb: "Ce qui marche partout (2016, 2019) et les fonctions récentes signalées." },
 ];
 
 export const SKILLS = [
@@ -40,6 +40,15 @@ export const SKILLS = [
   { id: "show", group: "diaporama", name: "Diaporama", blurb: "Lancer, masquer, présentateur, répétition" },
   { id: "review", group: "diaporama", name: "Révision", blurb: "Orthographe, accessibilité, notes, commentaires" },
   { id: "view", group: "diaporama", name: "Affichage", blurb: "Trieuse, plan, quadrillage, zoom, masque" },
+  { id: "oneslide", group: "design", name: "Un message par diapositive", blurb: "Trois puces, titres qui disent quelque chose" },
+  { id: "hier", group: "design", name: "Hiérarchie, contraste, sobriété", blurb: "Tailles, contraste, polices et couleurs limitées" },
+  { id: "grid", group: "design", name: "Grille, marges, alignement", blurb: "Marges, espaces égaux, tailles identiques" },
+  { id: "mna-valo", group: "metiers", name: "Valorisation (M&A)", blurb: "Football field, bridge, comparables, sensibilité" },
+  { id: "mna-docs", group: "metiers", name: "Documents de deal", blurb: "Teaser, one-pager, strip profile, sources et emplois" },
+  { id: "mna-process", group: "metiers", name: "Process et structure", blurb: "Timeline, calendrier, organigramme" },
+  { id: "autres-metiers", group: "metiers", name: "Conseil, marketing, RH, ventes", blurb: "Matrice 2×2, entonnoir, KPI, effectifs" },
+  { id: "s365-base", group: "sans365", name: "Ce qui marche partout", blurb: "Alternatives 2016/2019 et diffusion" },
+  { id: "s365-recent", group: "sans365", name: "Fonctions récentes", blurb: "Concepteur, images de stock, sous-titres… (badge 365)" },
 ];
 export const skillById = (id) => SKILLS.find((s) => s.id === id);
 export const groupById = (id) => GROUPS.find((g) => g.id === id);

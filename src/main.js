@@ -133,7 +133,7 @@ function skillView(id) {
       ${L.pitfalls?.length ? `<h3>Les pièges</h3><ul class="learn">${L.pitfalls.map((x) => `<li>${k(x)}</li>`).join("")}</ul>` : ""}
     </section>` : ""}
     <div class="sticky-cta">${cta}</div>
-    <h3 class="sec">Les exercices</h3>${list.map((e) => `<button class="card ${done[e.id] ? "done" : ""}" data-action="open" data-id="${e.id}"><span class="t">${esc(e.title)}</span><span class="meta">${done[e.id] ? `✓ ${done[e.id].xp} XP` : `${e.xp} XP`}</span></button>`).join("")}`;
+    <h3 class="sec">Les exercices</h3>${list.map((e) => `<button class="card ${done[e.id] ? "done" : ""}" data-action="open" data-id="${e.id}"><span class="t">${esc(e.title)}${tierTag(e)}</span><span class="meta">${done[e.id] ? `✓ ${done[e.id].xp} XP` : `${e.xp} XP`}</span></button>`).join("")}`;
 }
 
 function quizView() {
@@ -285,6 +285,13 @@ function checklistView(ex, res) {
   return `<div class="cl-card"><div class="cl-head"><b>Ce que ta présentation doit contenir</b><span>${nOk}/${items.length}</span></div><ul class="cl">${items.map((i, n) => `<li class="${i.ok === true ? "cl-ok" : i.ok === false ? "cl-ko" : "cl-wait"}">${icon(i.ok === true ? "check" : i.ok === false ? "x" : "dot", 18)}<div><div class="cl-label">${esc(i.label)}${i.skip ? " <small>(non vérifiable avec ta version de PowerPoint)</small>" : ""}</div>${i.ok === false && i.msg ? `<div class="cl-msg">${esc(i.msg)}</div>` : ""}${i.confirm && !i.ok ? `<button class="btn" data-action="confirm" data-id="${esc(ex.answers[n].id)}">C'est fait</button>` : ""}</div></li>`).join("")}</ul></div>`;
 }
 
+const tierTag = (e) => (e.tier ? ` <span class="tag">${esc(e.tier)}</span>` : "");
+function tierNote(ex) {
+  if (!ex.tier) return "";
+  const m = maxSet(), old = inOffice && m && Number(m.split(".")[1]) < 5; // API < 1.5 = PowerPoint 2016/2019 ancien
+  return `<div class="result" style="margin:0 0 8px"><span class="tag">${esc(ex.tier)}</span> Fonction ${ex.tier === "365" ? "réservée à Microsoft 365" : "absente de PowerPoint 2016 (présente à partir de 2019)"}. ${old ? "<b>Ton PowerPoint semble ancien : tu ne l'as sans doute pas.</b> " : ""}Si le bouton n'existe pas dans ton ruban, <button class="link" data-action="notier">je n'ai pas cette fonction : passer</button>.</div>`;
+}
+
 function exerciseView() {
   const ex = curEx();
   const g = groupById(skillById(ex.skill)?.group);
@@ -302,6 +309,7 @@ function exerciseView() {
   return `<div class="exbar"><button class="back" data-action="${state.fromSkill ? "skill" : "home"}" data-id="${esc(ex.skill)}" aria-label="Retour">${icon("back", 20)}</button><div class="crumb">${exam ? `<b>Test · ${esc(exam.name)}</b> · épreuve ${exam.i + 1}/${exam.ids.length}` : `${esc(g?.name ?? "")} · ${esc(skillById(ex.skill)?.name ?? "")}`}</div><span class="pill">${icon("clock", 13)} <span id="timer">0:00</span></span></div>
     <h2 class="ex-title">${esc(ex.title)}</h2>
     <p class="ex-story">${esc(ex.story)}</p>
+    ${tierNote(ex)}
     ${ex.api && ex.api !== "1.4" ? `<p class="note" style="margin:0 0 6px"><span class="tag ${inOffice && !compatible(ex) ? "bad" : ""}">API ${esc(ex.api)}</span> ${inOffice && !compatible(ex) ? "Ton PowerPoint est trop ancien pour corriger cet exercice." : ""}</p>` : ""}
     <details class="data" ${inOffice ? "" : "open"}><summary>${icon("eye", 16)} Voir la diapositive de départ</summary><div style="display:grid;gap:6px;margin-top:6px">${preview.slides.map((_, i) => slideSvg(preview, i)).join("")}</div></details>
     <div class="actions">${actions}</div>
@@ -474,6 +482,7 @@ const actions = {
   pick(el) { const n = Number(el.dataset.id); state.quiz.picked = n; state.quiz.answers[state.quiz.i] = n; },
   qnext() { const q = state.quiz; q.i++; q.picked = null; if (q.i >= QUESTIONS.length) savePlacement({ answers: q.answers, at: Date.now() }); },
   skipgrp(el) { recordSkip("grp:" + el.dataset.id); cloud.schedulePush(); },
+  notier() { recordWin(curEx().id, 0, Date.now() - state.startedAt); cloud.schedulePush(); Object.assign(state, { won: true, final: { xp: 0, ms: Date.now() - state.startedAt } }); },
   tip() { state.tip = true; },
   hint() { state.hint = true; state.tip = true; },
   async solution() {
