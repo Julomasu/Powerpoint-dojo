@@ -2,6 +2,7 @@
 // ⚠ L'identifiant de l'add-in hébergé (HOSTED_ID) et l'adresse du site ne doivent JAMAIS changer une fois publiés :
 // un add-in déjà installé casserait. Ils sont propres à PowerPoint Dojo (différents de ceux de l'Excel Dojo).
 export const HOSTED_ID = "b2fa4576-8f07-4610-a63b-d11a00670a8f";
+export const HOSTED_URL = "https://slidesdojo.vercel.app/"; // adresse définitive du site (projet Vercel « slidesdojo ») : ne plus la changer
 export const DEV_ID = "0d3a7c52-5e1b-4c8e-9a64-2f7b1d3c8e05"; // add-in de test local (https://localhost:3000)
 
 export const buildManifest = (base, id = HOSTED_ID) => `<?xml version="1.0" encoding="UTF-8"?>
